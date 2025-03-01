@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import styled from 'styled-components';
 import { theme } from '../styles/theme';
+import AlarmSettings from '../components/AlarmSettings';
 
 const DashboardContainer = styled.div`
   padding: ${theme.spacing.large};
@@ -67,6 +68,7 @@ const Dashboard: React.FC = () => {
         <StatTitle>Last Session</StatTitle>
         <StatValue>{lastSessionDate || 'No sessions yet'}</StatValue>
       </StatCard>
+      <AlarmSettings />
     </DashboardContainer>
   );
 };
