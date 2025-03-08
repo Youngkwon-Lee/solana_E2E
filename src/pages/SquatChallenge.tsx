@@ -1,66 +1,97 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { updateSquatCount } from '../store/squatSlice';
-import { saveSquatDataOnChain } from '../services/solanaService';
-import VideoComponent from '../components/VideoComponent';
-import RewardModal from '../components/RewardModal';
-import { useWallet } from '@solana/wallet-adapter-react';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../store";
+import { updateSquatCount, completeChallenge } from "../store/squatSlice";
+import { saveExerciseRecord, getExerciseHistory } from "../services/apiService"; 
+import styled from "styled-components";
 
+// ✅ Styled Components
 const Container = styled.div`
-  max-width: 600px;
-  margin: 20px auto;
-  padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
+  padding: 20px;
 `;
 
-const Title = styled.h1`
-  color: ${props => props.theme.colors.primary};
-  margin-bottom: 20px;
+const Button = styled.button`
+  background-color: ${(props) => props.theme.colors.primary};
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin: 10px;
+  &:hover {
+    background-color: ${(props) => props.theme.colors.primaryHover};
+  }
 `;
 
 const SquatChallenge: React.FC = () => {
   const dispatch = useDispatch();
-  const wallet = useWallet(); // ✅ useWallet()을 컴포넌트 내부에서 호출 (오류 해결)
-  const { todayCount, dailyGoal } = useSelector((state: RootState) => state.squats);
-  const [showReward, setShowReward] = useState(false);
+  const { todayCount, dailyGoal, bestStreak, streak } = useSelector(
+    (state: RootState) => state.squats
+  );
+  const walletAddress = useSelector((state: RootState) => state.auth.walletAddress);
+  const [squatCount, setSquatCount] = useState(0);
 
-  const handlePoseDetected = async ({ isSquatting }: { isSquatting: boolean }) => {
-    if (!isSquatting) {
-      const newCount = todayCount + 1;
-      dispatch(updateSquatCount(1)); // ✅ Redux 상태 업데이트
+  useEffect(() => {
+    if (walletAddress) {
+      fetchExerciseHistory(walletAddress);
+    }
+  }, [walletAddress]);
 
-      // ✅ 10회마다 Solana 블록체인에 저장
-      if (newCount % 10 === 0) {
-        try {
-          if (!wallet || !wallet.publicKey) {
-            alert('❌ 지갑이 연결되지 않았습니다. 블록체인 저장이 불가능합니다.');
-            return;
-          }
+  // ✅ 사용자 운동 기록 불러오기
+  const fetchExerciseHistory = async (userId: string) => {
+    try {
+      const data = await getExerciseHistory(userId);
+      console.log("✅ 운동 기록 불러오기 성공:", data);
+    } catch (error) {
+      console.error("❌ 운동 기록 불러오기 실패:", error);
+    }
+  };
 
-          const txSignature = await saveSquatDataOnChain(wallet.publicKey.toString(), newCount);
-          console.log(`✅ 블록체인 저장 완료: ${txSignature}`);
-        } catch (error) {
-          console.error('❌ 블록체인 저장 실패:', error);
-        }
-      }
-
-      // ✅ 목표 달성 시 보상 화면 표시
-      if (newCount >= dailyGoal) {
-        setShowReward(true);
+  // ✅ Squat 횟수 기록 API 호출
+  const handleSaveSquat = async () => {
+    if (squatCount > 0 && walletAddress) {
+      try {
+        await saveExerciseRecord(walletAddress, squatCount);  // ✅ 인자를 올바르게 전달
+        dispatch(updateSquatCount(squatCount));
+        setSquatCount(0);
+        alert("✅ 운동 기록이 저장되었습니다!");
+      } catch (error) {
+        console.error("❌ 운동 기록 저장 실패:", error);
       }
     }
   };
 
+  // ✅ 목표 달성 API 호출
+  const handleCompleteChallenge = () => {
+    dispatch(completeChallenge());
+    alert("✅ 목표 달성 완료! 스트릭이 증가했습니다.");
+  };
+
+  // ✅ 버튼 클릭 핸들러
+  const handleSquatInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSquatCount(Number(e.target.value));
+  };
+
   return (
     <Container>
-      <Title>🏋️‍♂️ 스쿼트 챌린지</Title>
-      <VideoComponent onPoseDetected={handlePoseDetected} />
-      {showReward && <RewardModal onClose={() => setShowReward(false)} onSave={async () => console.log('보상 저장!')} />}
+      <h1>🏋️ Squat Challenge</h1>
+      <p>오늘 목표: {dailyGoal}개</p>
+      <p>현재 진행: {todayCount}개</p>
+      <p>연속 수행일: {streak}일</p>
+      <p>최고 스트릭 기록: {bestStreak}일</p>
+
+      <div>
+        <input
+          type="number"
+          value={squatCount}
+          onChange={handleSquatInputChange}
+          placeholder="운동 횟수 입력"
+        />
+        <Button onClick={handleSaveSquat}>기록 저장</Button>
+      </div>
+
+      <Button onClick={handleCompleteChallenge}>목표 달성</Button>
     </Container>
   );
 };

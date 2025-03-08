@@ -1,8 +1,9 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { store } from '../store';
+import { SquatState } from "../store/squatSlice";
+const API_URL = "http://localhost:3000";
 
-// ✅ 환경 변수에서 API 기본 URL 가져오기
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+
 
 // ✅ 공통 API 호출 함수
 export const apiCall = async <T>(
@@ -49,15 +50,14 @@ export const authenticateWallet = async (authData: any) => {
   }
 };
 
-
 // ✅ 사용자 프로필 조회
 export const getUserProfile = async () => {
   return await apiCall('/user/profile', 'GET');
 };
 
 // ✅ 운동 기록 저장 (서버 API)
-export const saveSquatSession = async (sessionData: any) => {
-  return await apiCall('/exercise', 'POST', sessionData);
+export const saveExerciseRecord = async (walletAddress: string, count: number) => {
+  return await apiCall(`${API_URL}/exercise/save`, 'POST', { walletAddress, count }); 
 };
 
 // ✅ 운동 목표 저장
@@ -65,9 +65,9 @@ export const saveGoal = async (goal: number) => {
   return await apiCall('/user/goal', 'POST', { goal });
 };
 
-// ✅ 운동 기록 불러오기
-export const getDashboardData = async () => {
-  return await apiCall('/user/dashboard', 'GET');
+// ✅ 운동 기록 조회 API 함수
+export const getExerciseHistory = async (walletAddress: string): Promise<Partial<SquatState>> => {
+  return await apiCall(`/exercise/history?wallet=${walletAddress}`, 'GET');
 };
 
 // ✅ 리더보드 데이터 조회
